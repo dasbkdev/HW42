@@ -1,8 +1,9 @@
 package server;
 
+import java.io.IOException;
+
 public class ServerMain {
-    public static void main(String[] args) {
-        int port = 8788;
-        new EchoServer(port).start();
+    public static void main(String[] args) throws IOException {
+        new ChatServer(8788).start();
     }
 }
