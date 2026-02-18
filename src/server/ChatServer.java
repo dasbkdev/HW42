@@ -1,30 +1,22 @@
 package server;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatServer {
 
-    private final int port;
     private final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, ClientHandler> byName = new ConcurrentHashMap<>();
 
-    public ChatServer(int port) {
-        this.port = port;
+    public void addClient(ClientHandler client) {
+        clients.add(client);
+        byName.put(client.getName(), client);
     }
 
-    public void start() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(port);
-        System.out.println("Chat server started on port " + port);
-
-        while (true) {
-            Socket socket = serverSocket.accept();
-            ClientHandler client = new ClientHandler(socket, this);
-            clients.add(client);
-            new Thread(client).start();
-        }
+    public void removeClient(ClientHandler client) {
+        clients.remove(client);
+        byName.remove(client.getName(), client);
+        broadcast("System: " + client.getName() + " left the chat", client);
     }
 
     public void broadcast(String message, ClientHandler sender) {
@@ -35,7 +27,38 @@ public class ChatServer {
         }
     }
 
-    public void removeClient(ClientHandler client) {
-        clients.remove(client);
+    public boolean isNameFree(String name) {
+        return !byName.containsKey(name);
+    }
+
+    public boolean rename(ClientHandler client, String newName) {
+        String old = client.getName();
+
+        if (newName == null) return false;
+        newName = newName.trim();
+
+        if (newName.isEmpty()) return false;
+        if (newName.contains(" ")) return false;
+        if (!isNameFree(newName)) return false;
+
+
+        byName.remove(old, client);
+        client.setName(newName);
+        byName.put(newName, client);
+
+        broadcast("System: " + old + " is now " + newName, client);
+        return true;
+    }
+
+    public String listUsers() {
+        return String.join(", ", byName.keySet());
+    }
+
+    public boolean whisper(String toName, String message, ClientHandler from) {
+        ClientHandler to = byName.get(toName);
+        if (to == null) return false;
+
+        to.sendMessage("(whisper) " + from.getName() + ": " + message);
+        return true;
     }
 }
